@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="ja">
+    <head>
+        <meta charset="UTF-8" />
+        <title>サンプルデモ</title>
+        <link rel="stylesheet" href="css/blockrain.css" />
+        <link rel="stylesheet" href="css/milligram.min.css" />
+    </head>
+    <body>
+        <div class="container">
+            <h1>テトリスWebランキング</h1>
+            
+            <div class="row">
+              <div class="game column"></div>
+              <div class="column">
+                  <table>
+                      <tr>
+                          <th>順位</th>
+                          <th>ユーザー名</th>
+                          <th>スコア</th>
+                      </tr>
+                      <tr>
+                          <td>1位</td>
+                          <td class="name1"></td>
+                          <td class="score1"></td>
+                      </tr>
+                      <tr>
+                          <td>2位</td>
+                          <td class="name2"></td>
+                          <td class="score2"></td>
+                      </tr>
+                      <tr>
+                          <td>3位</td>
+                          <td class="name3"></td>
+                          <td class="score3"></td>
+                      </tr>
+                      <tr>
+                          <td>4位</td>
+                          <td class="name4"></td>
+                          <td class="score4"></td>
+                      </tr>
+                      <tr>
+                          <td>5位</td>
+                          <td class="name5"></td>
+                          <td class="score5"></td>
+                      </tr>
+                  </table>
+              </div>
+            </div>
+        </div>
+        
+        <script src="js/jquery-2.2.4.min.js"></script>
+        <script src="js/blockrain.jquery.min.js"></script>
+        <script src="js/milkcocoa.js"></script>
+        
+        <script>
+            // app.js
+            var milkcocoa = new MilkCocoa('dogiomuupyo.mlkcca.com');
+            var ds = milkcocoa.dataStore("score");
+            
+            // スコアデータの保持用
+            var scoreList = { id: null, data:[] };
+            
+            setup();
+            
+            // 初期設定用の関数
+            function setup() {
+                // milkcocoaからデータ読み出し
+                ds.stream().next(function(err, mess){
+                    // ①データベースに「スコア」が存在するかを確認
+                    if (mess[0]===undefined) {
+                        // ②スコアデータの初期設定
+                        scoreList.data.push([
+                            {name: "----", score: 500},
+                            {name: "----", score: 400},
+                            {name: "----", score: 300},
+                            {name: "----", score: 200},
+                            {name: "----", score: 100}
+                        ]);
+                        ds.push(scoreList);
+                    }
+                    else {
+                        // ③データベースからスコアを取得
+                        scoreList.data.push(mess[0].value.data[0]);
+                    }
+                    rankUpdate();
+                    
+                });
+            }
+            
+            // ランキングデータ表示用の関数
+            function rankUpdate() {
+                // ランキング数の取得
+                var maxRank = scoreList.data[0].length;
+                
+                // ランキング順にページへ表示させる
+                for (var i=0; i<maxRank; i++) {
+                    $(".name"  + (i+1)).text(scoreList.data[0][i].name); 
+                    $(".score" + (i+1)).text(scoreList.data[0][i].score); 
+                }
+            }
+            
+            // ランキングデータ作成用の関数
+            function rankSort(user, score) {
+                // 最新のスコアデータにするために初期化
+                scoreList.data = [];
+                ds.stream().next(function(err, mess){
+                    // 最新のデータを取得
+                    scoreList.data.push(mess[0].value.data[0]);
+                    // データベースを更新するためにIDを取得
+                    scoreList.id = mess[0].id;
+                    // ゲーム終了時のスコアを追加
+                    scoreList.data[0].push( {name: user, score: score });
+                    // スコア順に並び替え
+                    scoreList.data[0].sort(function(a,b)
+                      { return b["score"] - a["score"]});
+                    // ランク外を削除
+                    scoreList.data[0].pop();
+                    
+                    rankUpdate();
+                    
+                    // データベースのスコアを更新する
+                    ds.set(scoreList.id, scoreList);
+                });
+            }
+            
+            $(".game").blockrain({
+                theme: "candy",
+                autoBlockWidth: true,
+                onGameOver: function(s) {
+                   var user = window.prompt('ユーザー名を入力してください', '名無し');
+                   rankSort(user, s);
+////////////////   ds.push({score: s });  // スコアをクラウド上のサーバーに保存
+                }
+            });
+        </script>
+        
+    </body>
+</html>
